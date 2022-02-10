@@ -67,7 +67,6 @@ class EditActivity : ComponentActivity() {
             BackHandler(enabled = drawerState.isOpen) {
                 scope.launch {
                     drawerState.close()
-                    whenStarted { }
                 }
             }
 
@@ -79,6 +78,9 @@ class EditActivity : ComponentActivity() {
                             recentFiles.value,
                             onSelected = { file ->
                                 openFile(file)
+                                scope.launch {
+                                    drawerState.close()
+                                }
                             })
                     }) {
                     Surface(

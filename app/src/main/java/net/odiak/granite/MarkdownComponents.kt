@@ -27,7 +27,13 @@ fun TopLevelBlock(src: String, node: ASTNode) {
         return
     }
 
-    Block(src = src, node = node, isTopLevel = true)
+    Box(
+        modifier = Modifier
+            .padding(8.dp)
+            .fillMaxWidth()
+    ) {
+        Block(src = src, node = node, isTopLevel = true)
+    }
 }
 
 @Composable
@@ -128,11 +134,7 @@ fun AnnotatedString.Builder.appendInline(
     targets.forEachIndexed { index, child ->
         if (child is LeafASTNode) {
             when (child.type) {
-                MarkdownTokenTypes.EOL -> {
-                    // treat as space, except the case of BR EOL
-                    if (index != 0 && targets[index - 1].type != MarkdownTokenTypes.HARD_LINE_BREAK)
-                        append(" ")
-                }
+                MarkdownTokenTypes.EOL,
                 MarkdownTokenTypes.HARD_LINE_BREAK -> append("\n")
                 else -> append(child.getTextInNode(src).toString())
             }
@@ -315,6 +317,7 @@ fun CodeFence(src: String, node: ASTNode) {
     Column(
         modifier = Modifier
             .background(Color.LightGray)
+            .fillMaxWidth()
             .padding(8.dp)
     ) {
         val codeStyle = TextStyle(fontFamily = FontFamily.Monospace)
