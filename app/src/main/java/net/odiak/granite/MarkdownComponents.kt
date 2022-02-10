@@ -77,6 +77,10 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
                 )
             }
         }
+
+        FrontMatterProvider.FRONT_MATTER -> {
+            CodeFence(src, node)
+        }
     }
 }
 
@@ -306,6 +310,8 @@ fun MdOrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
 // similar to CodeFenceGeneratingProvider at GeneratingProviders.kt
 @Composable
 fun CodeFence(src: String, node: ASTNode) {
+    if (node.children.isEmpty()) return
+
     Column(
         modifier = Modifier
             .background(Color.LightGray)
@@ -327,7 +333,8 @@ fun CodeFence(src: String, node: ASTNode) {
                 renderStart = true
             } else {
                 when (child.type) {
-                    MarkdownTokenTypes.CODE_FENCE_CONTENT -> {
+                    MarkdownTokenTypes.CODE_FENCE_CONTENT,
+                    FrontMatterProvider.FRONT_MATTER_CONTENT -> {
                         builder.append(child.getTextInNode(src))
                         lastChildWasContent = true
                     }
