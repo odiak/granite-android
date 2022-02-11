@@ -8,6 +8,7 @@ package net.odiak.granite
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
@@ -28,7 +29,7 @@ import org.intellij.markdown.ast.impl.ListCompositeNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 
 @Composable
-fun TopLevelBlock(src: String, node: ASTNode) {
+fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
     if (node.type == MarkdownTokenTypes.EOL) {
         return
     }
@@ -37,6 +38,7 @@ fun TopLevelBlock(src: String, node: ASTNode) {
         modifier = Modifier
             .padding(8.dp)
             .fillMaxWidth()
+            .clickable { onClick() }
     ) {
         Block(src = src, node = node, isTopLevel = true)
     }

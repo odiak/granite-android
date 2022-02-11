@@ -3,25 +3,23 @@ package net.odiak.granite
 import android.content.ContentResolver
 import android.net.Uri
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
@@ -32,8 +30,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.odiak.granite.ui.theme.GraniteTheme
 import org.intellij.markdown.ast.ASTNode
+import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.parser.MarkdownParser
-import java.io.*
+import java.io.FileInputStream
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
 
 class EditActivity : ComponentActivity() {
     companion object {
@@ -56,6 +57,9 @@ class EditActivity : ComponentActivity() {
     private val tree = mutableStateOf<ASTNode?>(null)
     private val src = mutableStateOf("")
 
+    private val editingNode = mutableStateOf<ASTNode?>(null)
+    private val editingText = mutableStateOf("")
+
     private val parser = MarkdownParser(GFMWithWikiLinkFlavourDescriptor())
 
     @OptIn(DelicateCoroutinesApi::class, androidx.compose.runtime.ExperimentalComposeApi::class)
@@ -68,9 +72,11 @@ class EditActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(currentFile.value) {
-                println("effect!")
-
                 pref.updateLastOpened(LastOpened(uri = uri, name = currentFile.value?.name))
+            }
+
+            LaunchedEffect(editingNode.value) {
+                editingText.value = editingNode.value?.getTextInNode(src.value)?.toString() ?: ""
             }
 
             BackHandler(enabled = drawerState.isOpen) {
@@ -112,7 +118,40 @@ class EditActivity : ComponentActivity() {
                             LazyColumn {
                                 tree.value?.let {
                                     items(it.children) { node ->
-                                        TopLevelBlock(src = src.value, node = node)
+                                        if (node === editingNode.value) {
+                                            val fr = remember { FocusRequester() }
+                                            LaunchedEffect(Unit) {
+                                                fr.requestFocus()
+                                            }
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 10.dp),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
+                                                EditingActionButton(
+                                                    onClick = { editingNode.value = null },
+                                                    text = "Cancel"
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                EditingActionButton(
+                                                    onClick = { saveEditing() },
+                                                    text = "Done"
+                                                )
+                                            }
+                                            TextField(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .focusRequester(fr),
+                                                value = editingText.value,
+                                                onValueChange = { editingText.value = it }
+                                            )
+                                        } else {
+                                            TopLevelBlock(
+                                                src = src.value,
+                                                node = node,
+                                                onClick = { editingNode.value = node })
+                                        }
                                     }
                                 }
                             }
@@ -150,6 +189,25 @@ class EditActivity : ComponentActivity() {
                 src.value = s
             }
         }
+    }
+
+    private fun saveEditing() {
+        val children = tree.value?.children ?: return
+        val file = currentFile.value ?: return
+        val newSrc = children.joinToString("") {
+            if (it == editingNode.value)
+                editingText.value
+            else
+                it.getTextInNode(src.value)
+        }
+        contentResolver.openFileDescriptorForWriting(file.uri)!!.use { desc ->
+            FileOutputStream(desc.fileDescriptor).bufferedWriter().use { writer ->
+                writer.write(newSrc)
+            }
+        }
+        editingNode.value = null
+        tree.value = parser.buildMarkdownTreeFromString(newSrc)
+        src.value = newSrc
     }
 }
 
@@ -205,5 +263,22 @@ private fun DrawerContent(recentFiles: List<SimpleFile>, onSelected: (SimpleFile
                 )
             }
         }
+    }
+}
+
+private fun ContentResolver.openFileDescriptorForWriting(uri: Uri): ParcelFileDescriptor? =
+    try {
+        openFileDescriptor(uri, "wt")
+    } catch (_: FileNotFoundException) {
+        openFileDescriptor(uri, "w")
+    }
+
+@Composable
+private fun EditingActionButton(onClick: () -> Unit, text: String) {
+    Button(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+    ) {
+        Text(fontSize = 12.sp, text = text)
     }
 }
