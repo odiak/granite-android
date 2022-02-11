@@ -4,7 +4,7 @@ package net.odiak.granite
  * Classes related to Markdown parser extension.
  *
  * Based on two repositories' code:
- * - https://github.com/karino2/MDTouch
+ * - https://github.com/karino2/MDTouch/blob/main/app/src/main/java/io/github/karino2/mdtouch/Parser.kt
  * - https://github.com/JetBrains/markdown
  */
 

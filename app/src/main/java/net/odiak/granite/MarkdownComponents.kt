@@ -3,7 +3,7 @@ package net.odiak.granite
 /**
  * Components to show markdown contents
  *
- * Original code was on https://github.com/karino2/MDTouch .
+ * Original code was based on https://github.com/karino2/MDTouch/blob/main/app/src/main/java/io/github/karino2/mdtouch/ui/Markdown.kt .
  */
 
 import androidx.compose.foundation.Canvas
