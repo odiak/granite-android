@@ -14,6 +14,8 @@ import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
@@ -22,11 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.intellij.markdown.IElementType
+import org.intellij.markdown.MarkdownElementType
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.*
 import org.intellij.markdown.ast.impl.ListCompositeNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.html.entities.EntityConverter
 
 @Composable
 fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
@@ -36,9 +41,9 @@ fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
 
     Box(
         modifier = Modifier
-            .padding(8.dp)
             .fillMaxWidth()
             .clickable { onClick() }
+            .padding(8.dp)
     ) {
         Block(src = src, node = node, isTopLevel = true)
     }
@@ -65,14 +70,17 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
         MarkdownElementTypes.ATX_6 -> {
             Heading(src, node as CompositeASTNode, MaterialTheme.typography.subtitle2)
         }
+
         MarkdownElementTypes.PARAGRAPH -> {
             AnnotatedBox(buildAnnotatedString {
                 appendTrimmingInline(src, node, MaterialTheme.colors)
             }, if (isTopLevel) 8.dp else 0.dp)
         }
+
         MarkdownElementTypes.UNORDERED_LIST -> {
             MdUnorderedList(src, node as ListCompositeNode, isTopLevel)
         }
+
         MarkdownElementTypes.ORDERED_LIST -> {
             MdOrderedList(src, node as ListCompositeNode, isTopLevel)
         }
@@ -89,6 +97,14 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
                     color = Color.DarkGray,
                     thickness = 2.dp
                 )
+            }
+        }
+
+        MarkdownElementTypes.BLOCK_QUOTE -> {
+            BlockQuoteBox {
+                Column {
+                    MdBlocks(src = src, blocks = node as CompositeASTNode)
+                }
             }
         }
 
@@ -144,7 +160,8 @@ fun AnnotatedString.Builder.appendInline(
             when (child.type) {
                 MarkdownTokenTypes.EOL,
                 MarkdownTokenTypes.HARD_LINE_BREAK -> append("\n")
-                else -> append(child.getTextInNode(src).toString())
+                MarkdownTokenTypes.BLOCK_QUOTE -> {}
+                else -> append(child.getTextInNodeWithEscape(src))
             }
 
         } else {
@@ -154,7 +171,7 @@ fun AnnotatedString.Builder.appendInline(
                     val bgcolor = Color.LightGray
                     pushStyle(SpanStyle(color = Color.Red, background = bgcolor))
                     child.children.subList(1, child.children.size - 1).forEach { item ->
-                        append(item.getTextInNode(src).toString())
+                        append(item.getTextInNodeWithEscape(src))
                     }
                     pop()
                 }
@@ -188,7 +205,7 @@ fun AnnotatedString.Builder.appendInline(
                         child.children.filter { it.type == MarkdownElementTypes.LINK_TEXT }
                             .forEach { linktext ->
                                 linktext.children.subList(1, linktext.children.size - 1).forEach {
-                                    append(it.getTextInNode(src).toString())
+                                    append(it.getTextInNodeWithEscape(src))
                                 }
                             }
                     }
@@ -214,28 +231,49 @@ fun AnnotatedString.Builder.appendInline(
                             textDecoration = TextDecoration.Underline
                         )
                     ) {
-                        append(child.getTextInNode(src).toString())
+                        append(child.getTextInNodeWithEscape(src))
                     }
-
                 }
-
             }
         }
     }
 }
 
 fun selectTrimmingInline(node: ASTNode): List<ASTNode> {
+    val specificTypes = setOf(MarkdownTokenTypes.WHITE_SPACE, MarkdownTokenTypes.BLOCK_QUOTE)
     val children = node.children
-    var from = 0
-    while (from < children.size && children[from].type == MarkdownTokenTypes.WHITE_SPACE) {
-        from++
-    }
-    var to = children.size
-    while (to > from && children[to - 1].type == MarkdownTokenTypes.WHITE_SPACE) {
-        to--
+    val result = mutableListOf<ASTNode>()
+    var i = 0
+    while (i < children.size) {
+        var j = children.indexOfFirstFrom(i) { it.type == MarkdownTokenTypes.EOL }
+        if (j == -1) j = children.size
+
+        var from = i
+        while (from < j && children[from].type in specificTypes) {
+            from++
+        }
+        var to = j
+        while (to > from && children[to - 1].type in specificTypes) {
+            to--
+        }
+        result.addAll(children.subList(from, to))
+        if (j != children.size) result.add(children[j])
+
+        i = j + 1
     }
 
-    return children.subList(from, to)
+    return result
+}
+
+private inline fun <T> List<T>.indexOfFirstFrom(from: Int, predicate: (T) -> Boolean): Int {
+    var i = from
+    while (i < size) {
+        if (predicate(this[i])) {
+            return i
+        }
+        i++
+    }
+    return -1
 }
 
 @Composable
@@ -245,12 +283,9 @@ fun MdUnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
             if (item.type == MarkdownElementTypes.LIST_ITEM) {
                 Row {
                     Canvas(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .offset(y = 7.dp)
-                            .padding(end = 5.dp)
+                        modifier = Modifier.size(20.dp)
                     ) {
-                        drawCircle(radius = size.width / 2, center = center, color = Color.Black)
+                        drawCircle(radius = 2.dp.toPx(), center = center, color = Color.Black)
                     }
                     Box {
                         Column {
@@ -259,9 +294,7 @@ fun MdUnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
                     }
                 }
             }
-
         }
-
     }
 }
 
@@ -271,9 +304,7 @@ inline fun MdListColumn(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
-        Modifier
-            .offset(x = if (isTopLevel) 5.dp else 10.dp)
-            .padding(bottom = if (isTopLevel) 5.dp else 0.dp)
+        Modifier.padding(bottom = if (isTopLevel) 5.dp else 0.dp)
     ) { content() }
 }
 
@@ -369,4 +400,25 @@ fun CodeFence(src: String, node: ASTNode) {
         }
 
     }
+}
+
+@Composable
+fun BlockQuoteBox(content: @Composable () -> Unit) {
+    Box(modifier = Modifier
+        .drawBehind {
+            drawLine(
+                Color.LightGray,
+                Offset(0f, 0f),
+                Offset(0f, size.height),
+                3.dp.toPx()
+            )
+        }
+        .padding(start = 10.dp)) {
+        content()
+    }
+}
+
+val symbolPattern = Regex("""\\([!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])""")
+private fun ASTNode.getTextInNodeWithEscape(src: String): String {
+    return getTextInNode(src).toString().replace(symbolPattern) { m -> m.groups[1]!!.value }
 }
