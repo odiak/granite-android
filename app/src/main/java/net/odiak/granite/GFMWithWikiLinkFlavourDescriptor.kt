@@ -54,7 +54,7 @@ open class GFMWithWikiLinkFlavourDescriptor : CommonMarkFlavourDescriptor() {
 }
 
 class WikiLinkParser : SequentialParser {
-    fun parseWikiLink(iterator: TokensCache.Iterator): LocalParsingResult? {
+    private fun parseWikiLink(iterator: TokensCache.Iterator): LocalParsingResult? {
         val startIndex = iterator.index
         var it = iterator
         val delegate = RangesListBuilder()

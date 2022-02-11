@@ -18,6 +18,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -41,17 +42,19 @@ class EditActivity : ComponentActivity() {
     }
 
     private val name by lazy { intent.getStringExtra(EXTRA_NAME)!! }
+    private val uri by lazy { intent.getStringExtra(EXTRA_URI)!! }
     private val root by lazy {
         DocumentFile.fromTreeUri(
-            this,
-            Uri.parse(intent.getStringExtra(EXTRA_URI)!!)
+            this, Uri.parse(uri)
         )!!
     }
+
+    private val pref by lazy { GranitePreference(this) }
 
     private val recentFiles = mutableStateOf(emptyList<SimpleFile>())
     private val currentFile = mutableStateOf<SimpleFile?>(null)
     private val tree = mutableStateOf<ASTNode?>(null)
-    private val src = mutableStateOf<String>("")
+    private val src = mutableStateOf("")
 
     private val parser = MarkdownParser(GFMWithWikiLinkFlavourDescriptor())
 
@@ -63,6 +66,12 @@ class EditActivity : ComponentActivity() {
 
         setContent {
             val scope = rememberCoroutineScope()
+
+            LaunchedEffect(currentFile.value) {
+                println("effect!")
+
+                pref.updateLastOpened(LastOpened(uri = uri, name = currentFile.value?.name))
+            }
 
             BackHandler(enabled = drawerState.isOpen) {
                 scope.launch {
