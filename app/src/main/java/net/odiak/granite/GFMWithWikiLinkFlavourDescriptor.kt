@@ -1,5 +1,13 @@
 package net.odiak.granite
 
+/**
+ * Classes related to Markdown parser extension.
+ *
+ * Based on two repositories' code:
+ * - https://github.com/karino2/MDTouch
+ * - https://github.com/JetBrains/markdown
+ */
+
 import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementType
 import org.intellij.markdown.MarkdownTokenTypes

@@ -1,5 +1,11 @@
 package net.odiak.granite
 
+/**
+ * Components to show markdown contents
+ *
+ * Original code was on https://github.com/karino2/MDTouch .
+ */
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
