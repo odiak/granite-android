@@ -120,6 +120,13 @@ private fun Block(
         FrontMatterProvider.FRONT_MATTER -> {
             CodeFence(src, node)
         }
+
+        else -> {
+            // show unknown block as it is
+            if (isTopLevel) {
+                Text(node.getTextInNodeWithEscape(src))
+            }
+        }
     }
 }
 
@@ -178,6 +185,16 @@ private fun AnnotatedString.Builder.appendInline(
                 MarkdownTokenTypes.EOL,
                 MarkdownTokenTypes.HARD_LINE_BREAK -> append("\n")
                 MarkdownTokenTypes.BLOCK_QUOTE -> {}
+                GFMTokenTypes.GFM_AUTOLINK -> {
+                    withStyle(
+                        SpanStyle(
+                            colors.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    ) {
+                        append(child.getTextInNodeWithEscape(src))
+                    }
+                }
                 else -> append(child.getTextInNodeWithEscape(src))
             }
 
@@ -187,7 +204,7 @@ private fun AnnotatedString.Builder.appendInline(
                     // val bgcolor = Color(0xFFF5F5F5)
                     val bgcolor = Color.LightGray
                     pushStyle(SpanStyle(color = Color.Red, background = bgcolor))
-                    child.children.subList(1, child.children.size - 1).forEach { item ->
+                    child.children.dropFirstAndLast().forEach { item ->
                         append(item.getTextInNodeWithEscape(src))
                     }
                     pop()
@@ -197,7 +214,7 @@ private fun AnnotatedString.Builder.appendInline(
                         appendInline(
                             src,
                             child,
-                            { parent -> parent.children.subList(2, parent.children.size - 2) },
+                            { parent -> parent.children.dropFirstAndLast(2) },
                             colors
                         )
                     }
@@ -207,7 +224,7 @@ private fun AnnotatedString.Builder.appendInline(
                         appendInline(
                             src,
                             child,
-                            { parent -> parent.children.subList(1, parent.children.size - 1) },
+                            { parent -> parent.children.dropFirstAndLast() },
                             colors
                         )
                     }
@@ -221,9 +238,49 @@ private fun AnnotatedString.Builder.appendInline(
                     ) {
                         child.children.filter { it.type == MarkdownElementTypes.LINK_TEXT }
                             .forEach { linktext ->
-                                linktext.children.subList(1, linktext.children.size - 1).forEach {
+                                linktext.children.dropFirstAndLast().forEach {
                                     append(it.getTextInNodeWithEscape(src))
                                 }
+                            }
+                    }
+                }
+                MarkdownElementTypes.AUTOLINK -> {
+                    withStyle(
+                        SpanStyle(
+                            colors.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    ) {
+                        child.children.dropFirstAndLast()
+                            .forEach {
+                                append(it.getTextInNodeWithEscape(src))
+                            }
+                    }
+                }
+                MarkdownElementTypes.SHORT_REFERENCE_LINK -> {
+                    withStyle(
+                        SpanStyle(
+                            colors.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    ) {
+                        child.children.find { it.type == MarkdownElementTypes.LINK_LABEL }!!.children
+                            .dropFirstAndLast()
+                            .forEach {
+                                append(it.getTextInNodeWithEscape(src))
+                            }
+                    }
+                }
+                MarkdownElementTypes.FULL_REFERENCE_LINK -> {
+                    withStyle(
+                        SpanStyle(
+                            colors.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    ) {
+                        child.children.find { it.type == MarkdownElementTypes.LINK_TEXT }!!.children.dropFirstAndLast()
+                            .forEach {
+                                append(it.getTextInNodeWithEscape((src)))
                             }
                     }
                 }
@@ -232,7 +289,7 @@ private fun AnnotatedString.Builder.appendInline(
                         appendInline(
                             src,
                             child,
-                            { parent -> parent.children.subList(2, parent.children.size - 2) },
+                            { parent -> parent.children.dropFirstAndLast(2) },
                             colors
                         )
                     }
@@ -255,6 +312,8 @@ private fun AnnotatedString.Builder.appendInline(
         }
     }
 }
+
+private fun <T> List<T>.dropFirstAndLast(n: Int = 1): List<T> = subList(n, size - n)
 
 private fun selectTrimmingInline(node: ASTNode): List<ASTNode> {
     val specificTypes = setOf(MarkdownTokenTypes.WHITE_SPACE, MarkdownTokenTypes.BLOCK_QUOTE)
