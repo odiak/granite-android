@@ -70,6 +70,7 @@ class EditActivity : ComponentActivity() {
 
         setContent {
             val scope = rememberCoroutineScope()
+            val fr = remember { FocusRequester() }
 
             LaunchedEffect(currentFile.value) {
                 pref.updateLastOpened(LastOpened(uri = uri, name = currentFile.value?.name))
@@ -77,6 +78,10 @@ class EditActivity : ComponentActivity() {
 
             LaunchedEffect(editingNode.value) {
                 editingText.value = editingNode.value?.getTextInNode(src.value)?.toString() ?: ""
+
+                if (editingNode.value != null) {
+                    fr.requestFocus()
+                }
             }
 
             BackHandler(enabled = drawerState.isOpen) {
@@ -112,7 +117,7 @@ class EditActivity : ComponentActivity() {
                                     }
                                 },
                                 title = {
-                                    Text(text = "Granite")
+                                    Text(text = currentFile.value?.name ?: "Granite")
                                 })
 
                             Surface(
@@ -124,10 +129,6 @@ class EditActivity : ComponentActivity() {
                                     tree.value?.let {
                                         items(it.children) { node ->
                                             if (node === editingNode.value) {
-                                                val fr = remember { FocusRequester() }
-                                                LaunchedEffect(Unit) {
-                                                    fr.requestFocus()
-                                                }
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()

@@ -12,7 +12,8 @@
         <activity
             android:name=".EditActivity"
             android:exported="false"
-            android:theme="@style/Theme.Granite" />
+            android:theme="@style/Theme.Granite"
+            android:windowSoftInputMode="adjustResize"/>
 
         <activity
             android:name=".MainActivity"
