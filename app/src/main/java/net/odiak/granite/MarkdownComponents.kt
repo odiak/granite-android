@@ -24,14 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import org.intellij.markdown.IElementType
-import org.intellij.markdown.MarkdownElementType
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.*
 import org.intellij.markdown.ast.impl.ListCompositeNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
-import org.intellij.markdown.html.entities.EntityConverter
 
 @Composable
 fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
@@ -50,7 +47,7 @@ fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
 }
 
 @Composable
-fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
+private fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
     when (node.type) {
         MarkdownElementTypes.ATX_1 -> {
             Heading(src, node as CompositeASTNode, MaterialTheme.typography.h3)
@@ -78,11 +75,11 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
         }
 
         MarkdownElementTypes.UNORDERED_LIST -> {
-            MdUnorderedList(src, node as ListCompositeNode, isTopLevel)
+            UnorderedList(src, node as ListCompositeNode, isTopLevel)
         }
 
         MarkdownElementTypes.ORDERED_LIST -> {
-            MdOrderedList(src, node as ListCompositeNode, isTopLevel)
+            OrderedList(src, node as ListCompositeNode, isTopLevel)
         }
 
         MarkdownElementTypes.CODE_FENCE -> {
@@ -103,7 +100,7 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
         MarkdownElementTypes.BLOCK_QUOTE -> {
             BlockQuoteBox {
                 Column {
-                    MdBlocks(src = src, blocks = node as CompositeASTNode)
+                    Blocks(src = src, blocks = node as CompositeASTNode)
                 }
             }
         }
@@ -115,7 +112,7 @@ fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
 }
 
 @Composable
-fun AnnotatedBox(
+private fun AnnotatedBox(
     content: AnnotatedString,
     paddingBottom: Dp,
     style: TextStyle = LocalTextStyle.current
@@ -125,13 +122,13 @@ fun AnnotatedBox(
 
 
 @Composable
-fun Heading(src: String, node: CompositeASTNode, style: TextStyle) {
+private fun Heading(src: String, node: CompositeASTNode, style: TextStyle) {
     AnnotatedBox(buildAnnotatedString {
         node.children.forEach { appendHeadingContent(src, it, MaterialTheme.colors) }
     }, 0.dp, style)
 }
 
-fun AnnotatedString.Builder.appendHeadingContent(src: String, node: ASTNode, colors: Colors) {
+private fun AnnotatedString.Builder.appendHeadingContent(src: String, node: ASTNode, colors: Colors) {
     when (node.type) {
         MarkdownTokenTypes.ATX_CONTENT -> {
             appendTrimmingInline(src, node, colors)
@@ -144,11 +141,11 @@ fun AnnotatedString.Builder.appendHeadingContent(src: String, node: ASTNode, col
     }
 }
 
-fun AnnotatedString.Builder.appendTrimmingInline(src: String, node: ASTNode, colors: Colors) {
+private fun AnnotatedString.Builder.appendTrimmingInline(src: String, node: ASTNode, colors: Colors) {
     appendInline(src, node, ::selectTrimmingInline, colors)
 }
 
-fun AnnotatedString.Builder.appendInline(
+private fun AnnotatedString.Builder.appendInline(
     src: String,
     node: ASTNode,
     childrenSelector: (ASTNode) -> List<ASTNode>,
@@ -239,7 +236,7 @@ fun AnnotatedString.Builder.appendInline(
     }
 }
 
-fun selectTrimmingInline(node: ASTNode): List<ASTNode> {
+private fun selectTrimmingInline(node: ASTNode): List<ASTNode> {
     val specificTypes = setOf(MarkdownTokenTypes.WHITE_SPACE, MarkdownTokenTypes.BLOCK_QUOTE)
     val children = node.children
     val result = mutableListOf<ASTNode>()
@@ -277,8 +274,8 @@ private inline fun <T> List<T>.indexOfFirstFrom(from: Int, predicate: (T) -> Boo
 }
 
 @Composable
-fun MdUnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
-    MdListColumn(isTopLevel) {
+private fun UnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
+    ListColumn(isTopLevel) {
         node.children.forEach { item ->
             if (item.type == MarkdownElementTypes.LIST_ITEM) {
                 Row {
@@ -289,7 +286,7 @@ fun MdUnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
                     }
                     Box {
                         Column {
-                            MdBlocks(src, item as CompositeASTNode)
+                            Blocks(src, item as CompositeASTNode)
                         }
                     }
                 }
@@ -299,7 +296,7 @@ fun MdUnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
 }
 
 @Composable
-inline fun MdListColumn(
+private inline fun ListColumn(
     isTopLevel: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -309,13 +306,13 @@ inline fun MdListColumn(
 }
 
 @Composable
-fun MdBlocks(src: String, blocks: CompositeASTNode, isTopLevel: Boolean = false) {
+private fun Blocks(src: String, blocks: CompositeASTNode, isTopLevel: Boolean = false) {
     blocks.children.forEach { Block(src, it, isTopLevel) }
 }
 
 @Composable
-fun MdOrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
-    MdListColumn(isTopLevel) {
+private fun OrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
+    ListColumn(isTopLevel) {
         val items = node.children
             .filter { it.type == MarkdownElementTypes.LIST_ITEM }
 
@@ -340,7 +337,7 @@ fun MdOrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
                     }
                     Box {
                         Column {
-                            MdBlocks(src, item as CompositeASTNode)
+                            Blocks(src, item as CompositeASTNode)
                         }
                     }
                 }
@@ -350,7 +347,7 @@ fun MdOrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
 
 // similar to CodeFenceGeneratingProvider at GeneratingProviders.kt
 @Composable
-fun CodeFence(src: String, node: ASTNode) {
+private fun CodeFence(src: String, node: ASTNode) {
     if (node.children.isEmpty()) return
 
     Column(
@@ -403,7 +400,7 @@ fun CodeFence(src: String, node: ASTNode) {
 }
 
 @Composable
-fun BlockQuoteBox(content: @Composable () -> Unit) {
+private fun BlockQuoteBox(content: @Composable () -> Unit) {
     Box(modifier = Modifier
         .drawBehind {
             drawLine(
@@ -418,7 +415,7 @@ fun BlockQuoteBox(content: @Composable () -> Unit) {
     }
 }
 
-val symbolPattern = Regex("""\\([!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])""")
+private val symbolPattern = Regex("""\\([!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])""")
 private fun ASTNode.getTextInNodeWithEscape(src: String): String {
     return getTextInNode(src).toString().replace(symbolPattern) { m -> m.groups[1]!!.value }
 }
