@@ -115,44 +115,50 @@ class EditActivity : ComponentActivity() {
                                     Text(text = "Granite")
                                 })
 
-                            LazyColumn {
-                                tree.value?.let {
-                                    items(it.children) { node ->
-                                        if (node === editingNode.value) {
-                                            val fr = remember { FocusRequester() }
-                                            LaunchedEffect(Unit) {
-                                                fr.requestFocus()
-                                            }
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 10.dp),
-                                                horizontalArrangement = Arrangement.End
-                                            ) {
-                                                EditingActionButton(
-                                                    onClick = { editingNode.value = null },
-                                                    text = "Cancel"
+                            Surface(
+                                color = MaterialTheme.colors.surface,
+                                contentColor = MaterialTheme.colors.onSurface,
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                LazyColumn {
+                                    tree.value?.let {
+                                        items(it.children) { node ->
+                                            if (node === editingNode.value) {
+                                                val fr = remember { FocusRequester() }
+                                                LaunchedEffect(Unit) {
+                                                    fr.requestFocus()
+                                                }
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 10.dp),
+                                                    horizontalArrangement = Arrangement.End
+                                                ) {
+                                                    EditingActionButton(
+                                                        onClick = { editingNode.value = null },
+                                                        text = "Cancel"
+                                                    )
+                                                    Spacer(modifier = Modifier.width(10.dp))
+                                                    EditingActionButton(
+                                                        onClick = { saveEditing() },
+                                                        text = "Done"
+                                                    )
+                                                }
+                                                TextField(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .focusRequester(fr),
+                                                    value = editingText.value,
+                                                    onValueChange = { editingText.value = it }
                                                 )
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                EditingActionButton(
-                                                    onClick = { saveEditing() },
-                                                    text = "Done"
+                                            } else {
+                                                TopLevelBlock(
+                                                    src = src.value,
+                                                    node = node,
+                                                    onClick = { editingNode.value = node },
+                                                    onChangeCheckbox = if (editingNode.value == null) ::saveCheckboxChange else null
                                                 )
                                             }
-                                            TextField(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .focusRequester(fr),
-                                                value = editingText.value,
-                                                onValueChange = { editingText.value = it }
-                                            )
-                                        } else {
-                                            TopLevelBlock(
-                                                src = src.value,
-                                                node = node,
-                                                onClick = { editingNode.value = node },
-                                                onChangeCheckbox = if (editingNode.value == null) ::saveCheckboxChange else null
-                                            )
                                         }
                                     }
                                 }

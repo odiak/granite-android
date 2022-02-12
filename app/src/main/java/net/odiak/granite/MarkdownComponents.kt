@@ -9,6 +9,7 @@ package net.odiak.granite
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
@@ -24,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.*
@@ -314,10 +314,11 @@ private fun UnorderedList(
                                 onChangeCheckbox?.invoke(checkboxNode, it)
                             })
                     } else {
+                        val color = MaterialTheme.colors.onSurface
                         Canvas(
                             modifier = Modifier.size(20.dp)
                         ) {
-                            drawCircle(radius = 2.dp.toPx(), center = center, color = Color.Black)
+                            drawCircle(radius = 2.dp.toPx(), center = center, color = color)
                         }
                     }
                     Spacer(modifier = Modifier.size(4.dp))
@@ -398,7 +399,7 @@ private fun CodeFence(src: String, node: ASTNode) {
 
     Column(
         modifier = Modifier
-            .background(Color.LightGray)
+            .background(if (isSystemInDarkTheme()) Color.DarkGray else Color.LightGray)
             .fillMaxWidth()
             .padding(8.dp)
     ) {
@@ -447,10 +448,11 @@ private fun CodeFence(src: String, node: ASTNode) {
 
 @Composable
 private fun BlockQuoteBox(content: @Composable () -> Unit) {
+    val color = if (isSystemInDarkTheme()) Color.Gray else Color.LightGray
     Box(modifier = Modifier
         .drawBehind {
             drawLine(
-                Color.LightGray,
+                color,
                 Offset(0f, 0f),
                 Offset(0f, size.height),
                 3.dp.toPx()
