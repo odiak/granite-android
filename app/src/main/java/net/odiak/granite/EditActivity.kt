@@ -150,7 +150,9 @@ class EditActivity : ComponentActivity() {
                                             TopLevelBlock(
                                                 src = src.value,
                                                 node = node,
-                                                onClick = { editingNode.value = node })
+                                                onClick = { editingNode.value = node },
+                                                onChangeCheckbox = if (editingNode.value == null) ::saveCheckboxChange else null
+                                            )
                                         }
                                     }
                                 }
@@ -200,6 +202,10 @@ class EditActivity : ComponentActivity() {
             else
                 it.getTextInNode(src.value)
         }
+        save(newSrc, file)
+    }
+
+    private fun save(newSrc: String, file: SimpleFile) {
         contentResolver.openFileDescriptorForWriting(file.uri)!!.use { desc ->
             FileOutputStream(desc.fileDescriptor).bufferedWriter().use { writer ->
                 writer.write(newSrc)
@@ -208,6 +214,16 @@ class EditActivity : ComponentActivity() {
         editingNode.value = null
         tree.value = parser.buildMarkdownTreeFromString(newSrc)
         src.value = newSrc
+    }
+
+    private fun saveCheckboxChange(node: ASTNode, checked: Boolean) {
+        if (editingNode.value != null) return
+
+        val file = currentFile.value ?: return
+        val text = if (checked) "[x] " else "[ ] "
+        val range = node.startOffset until node.endOffset
+        val newSrc = src.value.replaceRange(range, text)
+        save(newSrc, file)
     }
 }
 

@@ -24,14 +24,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.intellij.markdown.IElementType
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.*
 import org.intellij.markdown.ast.impl.ListCompositeNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 
 @Composable
-fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
+fun TopLevelBlock(
+    src: String,
+    node: ASTNode,
+    onClick: () -> Unit,
+    onChangeCheckbox: ((ASTNode, Boolean) -> Unit)? = null
+) {
     if (node.type == MarkdownTokenTypes.EOL) {
         return
     }
@@ -42,12 +49,17 @@ fun TopLevelBlock(src: String, node: ASTNode, onClick: () -> Unit) {
             .clickable { onClick() }
             .padding(8.dp)
     ) {
-        Block(src = src, node = node, isTopLevel = true)
+        Block(src = src, node = node, isTopLevel = true, onChangeCheckbox)
     }
 }
 
 @Composable
-private fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
+private fun Block(
+    src: String,
+    node: ASTNode,
+    isTopLevel: Boolean,
+    onChangeCheckbox: ((ASTNode, Boolean) -> Unit)? = null
+) {
     when (node.type) {
         MarkdownElementTypes.ATX_1 -> {
             Heading(src, node as CompositeASTNode, MaterialTheme.typography.h3)
@@ -75,7 +87,7 @@ private fun Block(src: String, node: ASTNode, isTopLevel: Boolean) {
         }
 
         MarkdownElementTypes.UNORDERED_LIST -> {
-            UnorderedList(src, node as ListCompositeNode, isTopLevel)
+            UnorderedList(src, node as ListCompositeNode, isTopLevel, onChangeCheckbox)
         }
 
         MarkdownElementTypes.ORDERED_LIST -> {
@@ -128,7 +140,11 @@ private fun Heading(src: String, node: CompositeASTNode, style: TextStyle) {
     }, 0.dp, style)
 }
 
-private fun AnnotatedString.Builder.appendHeadingContent(src: String, node: ASTNode, colors: Colors) {
+private fun AnnotatedString.Builder.appendHeadingContent(
+    src: String,
+    node: ASTNode,
+    colors: Colors
+) {
     when (node.type) {
         MarkdownTokenTypes.ATX_CONTENT -> {
             appendTrimmingInline(src, node, colors)
@@ -141,7 +157,11 @@ private fun AnnotatedString.Builder.appendHeadingContent(src: String, node: ASTN
     }
 }
 
-private fun AnnotatedString.Builder.appendTrimmingInline(src: String, node: ASTNode, colors: Colors) {
+private fun AnnotatedString.Builder.appendTrimmingInline(
+    src: String,
+    node: ASTNode,
+    colors: Colors
+) {
     appendInline(src, node, ::selectTrimmingInline, colors)
 }
 
@@ -274,19 +294,40 @@ private inline fun <T> List<T>.indexOfFirstFrom(from: Int, predicate: (T) -> Boo
 }
 
 @Composable
-private fun UnorderedList(src: String, node: ListCompositeNode, isTopLevel: Boolean) {
+private fun UnorderedList(
+    src: String,
+    node: ListCompositeNode,
+    isTopLevel: Boolean,
+    onChangeCheckbox: ((ASTNode, Boolean) -> Unit)? = null
+) {
     ListColumn(isTopLevel) {
         node.children.forEach { item ->
             if (item.type == MarkdownElementTypes.LIST_ITEM) {
                 Row {
-                    Canvas(
-                        modifier = Modifier.size(20.dp)
-                    ) {
-                        drawCircle(radius = 2.dp.toPx(), center = center, color = Color.Black)
+                    val checkboxNode = item.children.getOrNull(1)
+                    if (checkboxNode?.type == GFMTokenTypes.CHECK_BOX) {
+                        Checkbox(
+                            modifier = Modifier.size(20.dp),
+                            checked = checkboxNode.getTextInNode(src).trim() == "[x]",
+                            enabled = onChangeCheckbox != null,
+                            onCheckedChange = {
+                                onChangeCheckbox?.invoke(checkboxNode, it)
+                            })
+                    } else {
+                        Canvas(
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            drawCircle(radius = 2.dp.toPx(), center = center, color = Color.Black)
+                        }
                     }
+                    Spacer(modifier = Modifier.size(4.dp))
                     Box {
                         Column {
-                            Blocks(src, item as CompositeASTNode)
+                            Blocks(
+                                src,
+                                item as CompositeASTNode,
+                                onChangeCheckbox = onChangeCheckbox
+                            )
                         }
                     }
                 }
@@ -306,8 +347,13 @@ private inline fun ListColumn(
 }
 
 @Composable
-private fun Blocks(src: String, blocks: CompositeASTNode, isTopLevel: Boolean = false) {
-    blocks.children.forEach { Block(src, it, isTopLevel) }
+private fun Blocks(
+    src: String,
+    blocks: CompositeASTNode,
+    isTopLevel: Boolean = false,
+    onChangeCheckbox: ((ASTNode, Boolean) -> Unit)? = null
+) {
+    blocks.children.forEach { Block(src, it, isTopLevel, onChangeCheckbox) }
 }
 
 @Composable
