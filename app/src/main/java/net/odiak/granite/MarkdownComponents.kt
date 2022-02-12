@@ -454,11 +454,35 @@ private fun OrderedList(src: String, node: ListCompositeNode, isTopLevel: Boolea
 // similar to CodeFenceGeneratingProvider at GeneratingProviders.kt
 @Composable
 private fun CodeFence(src: String, node: ASTNode) {
-    if (node.children.isEmpty()) return
+    val maybeLangNode = node.children.getOrNull(1)
+    val lang =
+        if (maybeLangNode != null && maybeLangNode.type == MarkdownTokenTypes.FENCE_LANG)
+            maybeLangNode.getTextInNodeWithEscape(src)
+        else
+            null
 
     Column(
         modifier = Modifier
             .background(if (isSystemInDarkTheme()) Color.DarkGray else Color.LightGray)
+            .fillMaxWidth()
+    ) {
+        if (lang != null) {
+            Text(
+                modifier = Modifier
+                    .background(Color.Gray)
+                    .padding(2.dp),
+                color = if (isSystemInDarkTheme()) Color.Black else Color.White,
+                text = lang
+            )
+        }
+        CodeFenceInner(src = src, node = node)
+    }
+}
+
+@Composable
+private fun CodeFenceInner(src: String, node: ASTNode) {
+    Column(
+        modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
     ) {
@@ -501,7 +525,6 @@ private fun CodeFence(src: String, node: ASTNode) {
                 text = builder.toString()
             )
         }
-
     }
 }
 
