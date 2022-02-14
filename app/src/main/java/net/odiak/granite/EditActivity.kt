@@ -20,14 +20,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.whenStarted
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.odiak.granite.ui.theme.GraniteTheme
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
@@ -58,29 +57,43 @@ class EditActivity : ComponentActivity() {
     private val src = mutableStateOf("")
 
     private val editingNode = mutableStateOf<ASTNode?>(null)
-    private val editingText = mutableStateOf("")
+    private val editingText = mutableStateOf(TextFieldValue())
 
     private val parser = MarkdownParser(GFMWithWikiLinkFlavourDescriptor())
+
+    private val drawerState = DrawerState(DrawerValue.Open)
 
     @OptIn(DelicateCoroutinesApi::class, androidx.compose.runtime.ExperimentalComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val drawerState = DrawerState(DrawerValue.Open)
 
         setContent {
             val scope = rememberCoroutineScope()
             val fr = remember { FocusRequester() }
 
             LaunchedEffect(currentFile.value) {
-                pref.updateLastOpened(LastOpened(uri = uri, name = currentFile.value?.name))
+                if (currentFile.value != null || pref.fetchLastOpened()?.uri != uri) {
+                    pref.updateLastOpened(LastOpened(uri = uri, name = currentFile.value?.name))
+                }
             }
 
             LaunchedEffect(editingNode.value) {
-                editingText.value = editingNode.value?.getTextInNode(src.value)?.toString() ?: ""
+                val text = editingNode.value?.getTextInNode(src.value)?.toString() ?: ""
+                editingText.value =
+                    editingText.value.copy(text = text, selection = TextRange(text.length))
 
                 if (editingNode.value != null) {
                     fr.requestFocus()
+                }
+            }
+
+            LaunchedEffect(recentFiles.value) block@{
+                if (currentFile.value != null || recentFiles.value.isEmpty()) return@block
+                val lastOpenedName = pref.fetchLastOpened()?.name ?: return@block
+                val file = recentFiles.value.find { it.name == lastOpenedName } ?: return@block
+                openFile(file)
+                scope.launch {
+                    drawerState.close()
                 }
             }
 
@@ -205,7 +218,7 @@ class EditActivity : ComponentActivity() {
         val file = currentFile.value ?: return
         val newSrc = children.joinToString("") {
             if (it == editingNode.value)
-                editingText.value
+                editingText.value.text
             else
                 it.getTextInNode(src.value)
         }
